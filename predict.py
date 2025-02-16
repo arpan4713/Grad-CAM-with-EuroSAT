@@ -31,10 +31,13 @@ def backward_hook(module, grad_in, grad_out):
     gradients = grad_out[0]
 
 def register_hooks(model):
+    last_conv_layer = None
     for name, module in model.named_modules():
         if isinstance(module, nn.Conv2d):  # Find the last convolutional layer
-            module.register_forward_hook(forward_hook)
-            module.register_full_backward_hook(backward_hook)
+            last_conv_layer = module
+    if last_conv_layer:
+        last_conv_layer.register_forward_hook(forward_hook)
+        last_conv_layer.register_full_backward_hook(backward_hook)
 
 def apply_colormap_on_image(org_im, activation):
     activation = cv2.resize(activation, (org_im.shape[1], org_im.shape[0]))
@@ -54,7 +57,9 @@ def generate_gradcam(model, image_tensor, class_idx):
         score.backward()
     
     weights = torch.mean(gradients, dim=[2, 3], keepdim=True)
-    cam = torch.sum(weights * feature_maps, dim=1, keepdim=True).squeeze().cpu().detach().numpy()
+    weights = weights.view(1, -1, 1, 1)  # Ensure matching shape with feature_maps
+    
+    cam = torch.sum(weights * feature_maps, dim=1).squeeze().cpu().detach().numpy()
     cam = np.maximum(cam, 0)
     cam = cam / np.max(cam)
     return cam
