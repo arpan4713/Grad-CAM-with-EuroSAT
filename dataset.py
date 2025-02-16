@@ -36,7 +36,7 @@ class EuroSAT(ImageFolder):
 
 # Apparently torchvision doesn't have any loader for this so I made one
 # Advantage compared to without loader: get "for free" transforms, DataLoader
-# (workers), etc
+# (workers), etc.
 class ImageFiles(Dataset):
     """
     Generic data loader where all paths must be given
