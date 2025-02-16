@@ -83,7 +83,13 @@ def predict(model, dl, dataset, show_progress=True, gradcam=False):
     preds = []
     truth = []
     i = 0
-    for images, labels, paths in dl:
+    for batch in dl:
+        if len(batch) == 2:
+            images, labels = batch
+            paths = [None] * len(images)  # Placeholder for missing paths
+        else:
+            images, labels, paths = batch
+        
         images = images.to(device, non_blocking=True)
         outputs = model(images)
         p = outputs.argmax(1).tolist()
@@ -91,6 +97,8 @@ def predict(model, dl, dataset, show_progress=True, gradcam=False):
         truth += labels.tolist()
         if gradcam:
             for img, pred, path in zip(images, p, paths):
+                if path is None:
+                    continue  # Skip if path is not available
                 heatmap = generate_gradcam(model, img.unsqueeze(0), pred)
                 save_path = f"gradcam_{os.path.basename(path)}"
                 visualize_gradcam(path, heatmap, save_path)
