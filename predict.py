@@ -75,7 +75,7 @@ def visualize_gradcam(image_path, heatmap, save_path):
     print(f"Saved Grad-CAM visualization at {save_path}")
 
 @torch.no_grad()
-def predict(model, dl, show_progress=True, gradcam=False):
+def predict(model, dl, dataset, show_progress=True, gradcam=False):
     if show_progress:
         dl = tqdm(dl, "Predict", unit="batch")
     device = next(model.parameters()).device
@@ -83,17 +83,17 @@ def predict(model, dl, show_progress=True, gradcam=False):
     preds = []
     truth = []
     i = 0
-    for images, labels in dl:
+    for images, labels, paths in dl:
         images = images.to(device, non_blocking=True)
         outputs = model(images)
         p = outputs.argmax(1).tolist()
         preds += p
         truth += labels.tolist()
         if gradcam:
-            for img, pred in zip(images, p):
+            for img, pred, path in zip(images, p, paths):
                 heatmap = generate_gradcam(model, img.unsqueeze(0), pred)
-                save_path = f"gradcam_{i}.jpg"
-                visualize_gradcam(f"image_{i}.jpg", heatmap, save_path)
+                save_path = f"gradcam_{os.path.basename(path)}"
+                visualize_gradcam(path, heatmap, save_path)
                 i += 1
     return TestResult(truth=torch.as_tensor(truth), predictions=torch.as_tensor(preds))
 
@@ -122,7 +122,7 @@ def main(args):
     dataset = EuroSAT(transform=tr)
     trainval, test = random_split(dataset, 0.9, random_state=42)
     test_dl = torch.utils.data.DataLoader(test, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
-    result = predict(model, test_dl, gradcam=args.gradcam)
+    result = predict(model, test_dl, dataset, gradcam=args.gradcam)
     report(result, dataset.classes)
 
 if __name__ == '__main__':
