@@ -46,9 +46,13 @@ def apply_colormap_on_image(org_im, activation):
 def generate_gradcam(model, image_tensor, class_idx):
     global feature_maps, gradients
     model.zero_grad()
-    output = model(image_tensor)
-    score = output[:, class_idx]
-    score.backward()
+    image_tensor.requires_grad_()  # Ensure gradients are tracked
+    
+    with torch.set_grad_enabled(True):
+        output = model(image_tensor)
+        score = output[:, class_idx]
+        score.backward()
+    
     weights = torch.mean(gradients, dim=[2, 3], keepdim=True)
     cam = torch.sum(weights * feature_maps, dim=1).squeeze().cpu().detach().numpy()
     cam = np.maximum(cam, 0)
@@ -57,6 +61,9 @@ def generate_gradcam(model, image_tensor, class_idx):
 
 def visualize_gradcam(image_path, heatmap, save_path):
     org_img = cv2.imread(image_path)
+    if org_img is None:
+        print(f"Warning: Unable to load image {image_path}")
+        return
     org_img = cv2.cvtColor(org_img, cv2.COLOR_BGR2RGB)
     superimposed_img = apply_colormap_on_image(org_img, heatmap)
     cv2.imwrite(save_path, cv2.cvtColor(superimposed_img, cv2.COLOR_RGB2BGR))
